@@ -2,9 +2,11 @@
 
 import { Navigation } from "@/components/navigation"
 import { AIPlayground } from "@/components/ai-playground"
+import ProtectedRoute from "../../context/ProtectedRoute";
 
 export default function TestAIPage() {
   return (
+    <ProtectedRoute>
     <div className="min-h-screen bg-gray-50">
       <Navigation />
 
@@ -19,5 +21,6 @@ export default function TestAIPage() {
         </div>
       </main>
     </div>
+    </ProtectedRoute>
   )
 }

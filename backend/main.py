@@ -5,11 +5,12 @@ import os
 import json
 import re
 from fastapi import FastAPI, Header, HTTPException, File, UploadFile, Form
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv 
 from langchain import hub
+from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain.embeddings import SentenceTransformerEmbeddings
 from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate
 from langchain_core.documents import Document
@@ -32,7 +33,7 @@ load_dotenv()
 os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
 llm = init_chat_model("gemini-2.5-flash",model_provider="google_genai")
 
-# Load VectorStore and RAG prompt
+# Load VectorStore and RAG prompt/
 persist_dir = ("knowledgebase")
 collection_name = "knowledgebaseV1"
 embedder = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-V2")
@@ -45,7 +46,7 @@ vector_store = Chroma(
 # Propmt Templates
 basic_system_prompt_content = """
         You are a classifier to determine whether the User Question is a 'basic' type or 'rag' type.
-        basic -> general, greating, basic, memory
+        basic -> general, greating, basic, memory, any basic task which dosen't need a document to be reffered
         rag -> knowledge based, information seeking, related to some docs
         If its a baisc, write the answer to the question by yourself.
         Give response as a VALID JSON array structrued and formatted well as below example:
@@ -73,30 +74,36 @@ rag_system_prompt = SystemMessagePromptTemplate.from_template(rag_system_prompt_
 
 # Build Graphs
 rag_graph = build_rag_graph(vector_store, llm, rag_system_prompt)
-# response = rag_graph.invoke({"question": query, "chat_history": formatted_history})
 basic_graph = build_simple_graph(llm, basic_system_prompt)
 
 
 app = FastAPI()
 API_TOKEN = "12345678"
 
-# Request Input Schema
-class UpdateRequest(BaseModel):
-    action: str
-    pdf_id: int
-    pdf_file: UploadFile | None = None
-    
+# Request Input Schema 
 class QueryRequest(BaseModel):
     query: str
     chat_history: list = []
 
+ 
+ 
+# Handling CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    # allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+ 
 @app.post("/main")
 def main(request: QueryRequest, authorization: str = Header(None)):
-    if authorization != f"Bearer {API_TOKEN}":
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    # if authorization != f"Bearer {API_TOKEN}":
+    #     raise HTTPException(status_code=401, detail="Unauthorized")
 
     query = request.query
     past_msgs = request.chat_history
+    print(past_msgs)
     formatted_history = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in past_msgs])
 
     # Call Basic LLM first
@@ -120,23 +127,45 @@ def main(request: QueryRequest, authorization: str = Header(None)):
         response = rag_graph.invoke({"question": query, "chat_history": formatted_history})
         return {"answer": response["answer"]}
 
-
 @app.post("/update")
-async def update(request:UpdateRequest, authorization: str = Header(None)) :
-    if request.action == "add":
-        # Save the PDF
-        contents = await request.pdf_file.read()
-        with open(f"uploads/{request.pdf_file.filename}", "wb") as f:
+async def update(
+    action: str = Form(...),
+    file_id: str = Form(...),
+    file_name: str = Form(...),
+    file_type: str = Form(...),
+    pdf_file: UploadFile | None = None,  # Optional for delete
+    authorization: str = Header(None)
+):
+    uploads_dir = "uploads"
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    if action == "add" and pdf_file:
+        # Check if doc already exists
+        result = vector_store.get(where={"file_id": file_id}, include=["metadatas"])
+        if result and len(result["ids"]) > 0:
+            print("File Already Exists")
+            return {"status": "PDF already Added"}
+        
+        # Save the PDF locally
+        file_path = os.path.join(uploads_dir, f"{file_id}_{pdf_file.filename}")
+        contents = await pdf_file.read()
+        with open(file_path, "wb") as f:
             f.write(contents)
 
         # Add to VectorStore
-        await vectorize("uploads/{request.pdf_file.filename}", request.pdf_id)
+        await vectorize(file_path, file_id, vector_store)
         return {"status": "PDF added and vectorized"}
-    
-    elif request.action == "delete":
-        # Delete the PDF
-        pdf_path = f"uploads/{request.pdf_file.filename}"
 
-        # Remove from VectoreStore
-        await devectorize( request.pdf_id)
+    elif action == "delete":
+        file_path = ""
+        if file_name:
+            file_path = os.path.join(uploads_dir, f"{file_id}_{file_name}.{file_type}")
+            print("Deleting: ",file_path)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                
+        # Remove from VectorStore
+        await devectorize(file_path,file_id, vector_store)
         return {"status": "PDF deleted!"}
+    
+    

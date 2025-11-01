@@ -1,8 +1,10 @@
 import { Navigation } from "@/components/navigation"
 import Link from "next/link"
+import ProtectedRoute from "../context/ProtectedRoute";
 
 export default function HomePage() {
   return (
+    <ProtectedRoute>
     <div className="min-h-screen bg-gray-50">
       <Navigation />
 
@@ -74,5 +76,6 @@ export default function HomePage() {
         </div>
       </main>
     </div>
+    </ProtectedRoute>
   )
 }

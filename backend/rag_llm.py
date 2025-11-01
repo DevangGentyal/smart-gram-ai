@@ -11,7 +11,7 @@ class State(TypedDict):
     
 def build_rag_graph(vector_sotre,llm,system_prompt):
     def retrive(state:State):
-        retrieved_docs  = vector_sotre.similarity_search(state["question"],k=20)
+        retrieved_docs  = vector_sotre.similarity_search(state["question"],k=10)
         print("Retrived Docs: "+str(retrieved_docs))
         return {"context":retrieved_docs}
     

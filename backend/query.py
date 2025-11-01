@@ -2,7 +2,7 @@
 
 # Import Packages
 from langchain.vectorstores import Chroma
-from langchain.embeddings import SentenceTransformerEmbeddings
+from langchain_community.embeddings import SentenceTransformerEmbeddings
 
 # Load VectorStore
 persist_dir = "backend/knowledgebase"

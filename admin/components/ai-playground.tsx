@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import { Send, Bot, User, Loader2 } from "lucide-react"
 
@@ -18,7 +17,7 @@ export function AIPlayground() {
       id: "1",
       type: "ai",
       content:
-        "Hello! I'm Smart Gram AI. I've been trained on your uploaded documents. Ask me anything about the content you've provided!",
+        "Hello! I'm Smart Gram AI. I've been trained on Village Data. Ask me anything about your Village!",
       timestamp: new Date(),
     },
   ])
@@ -45,22 +44,57 @@ export function AIPlayground() {
       timestamp: new Date(),
     }
 
+    // Push user message immediately
     setMessages((prev) => [...prev, userMessage])
     setInput("")
     setIsLoading(true)
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Build chat history in backend format
+      const chatHistory = [...messages, userMessage].map((m) => ({
+        role: m.type === "user" ? "user" : "system",
+        content: m.content,
+      }))
+
+      const res = await fetch("http://127.0.0.1:8000/main", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer 12345678",
+        },
+        body: JSON.stringify({
+          query: userMessage.content,
+          chat_history: chatHistory,
+        }),
+      })
+      console.log(chatHistory);
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Request failed: ${errorText}`)
+      }
+
+      const data = await res.json()
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "ai",
-        content: `Based on your uploaded documents, I can help you with information about the rules and testing procedures. Your query "${userMessage.content}" relates to the knowledge base you've trained me on. Here's what I found relevant to your question...`,
+        content: data.answer || "⚠️ No response from AI",
         timestamp: new Date(),
       }
 
       setMessages((prev) => [...prev, aiMessage])
+    } catch (err) {
+      console.error("🔥 Error fetching AI response:", err)
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        type: "ai",
+        content: "❌ Sorry, there was an error connecting to the AI server.",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   return (
@@ -68,7 +102,12 @@ export function AIPlayground() {
       {/* Chat Messages */}
       <div className="h-96 overflow-y-auto p-6 space-y-4">
         {messages.map((message) => (
-          <div key={message.id} className={`flex gap-3 ${message.type === "user" ? "justify-end" : "justify-start"}`}>
+          <div
+            key={message.id}
+            className={`flex gap-3 ${
+              message.type === "user" ? "justify-end" : "justify-start"
+            }`}
+          >
             {message.type === "ai" && (
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                 <Bot className="w-4 h-4 text-blue-600" />
@@ -77,11 +116,17 @@ export function AIPlayground() {
 
             <div
               className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
-                message.type === "user" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-900"
+                message.type === "user"
+                  ? "bg-red-600 text-white"
+                  : "bg-gray-100 text-gray-900"
               }`}
             >
               <p className="text-sm leading-relaxed">{message.content}</p>
-              <p className={`text-xs mt-2 ${message.type === "user" ? "text-red-200" : "text-gray-500"}`}>
+              <p
+                className={`text-xs mt-2 ${
+                  message.type === "user" ? "text-red-200" : "text-gray-500"
+                }`}
+              >
                 {message.timestamp.toLocaleTimeString()}
               </p>
             </div>
@@ -127,13 +172,18 @@ export function AIPlayground() {
             disabled={!input.trim() || isLoading}
             className="bg-red-600 text-white p-3 rounded-full hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[48px]"
           >
-            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
           </button>
         </form>
 
         <div className="mt-4 text-center">
           <p className="text-xs text-gray-500">
-            This is a demo playground. In production, this would connect to your trained AI model.
+            This is a demo playground. In production, this would connect to your
+            trained AI model.
           </p>
         </div>
       </div>

@@ -7,6 +7,7 @@ __pycache__/
 .env
 backend/.env
 frontend/.env
+admin/.env.local
 
 # Admin
 /admin/node_modules
