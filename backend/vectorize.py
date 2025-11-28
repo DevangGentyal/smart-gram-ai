@@ -1,10 +1,12 @@
 from langchain.document_loaders import PyPDFLoader
 from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_community.embeddings import CohereEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 
-embedder = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-V2")
+# embedder = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-V2")
+# new_embedder = CohereEmbeddings(model="embed-multilingual-v3.0")
 
 async def vectorize(pdf_path,file_id, vectorstore):
     # Load PDF

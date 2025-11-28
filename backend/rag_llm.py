@@ -2,6 +2,7 @@ from langchain.prompts import  ChatPromptTemplate, HumanMessagePromptTemplate
 from langgraph.graph import START, StateGraph
 from typing_extensions import TypedDict,List
 from langchain_core.documents import Document
+from langchain.prompts import SystemMessagePromptTemplate
 
 class State(TypedDict):
     question: str
@@ -9,7 +10,15 @@ class State(TypedDict):
     chat_history: str
     answer: str
     
-def build_rag_graph(vector_sotre,llm,system_prompt):
+system_prompt = SystemMessagePromptTemplate.from_template(
+    "You are a helpful RAG assistant."
+)
+
+def setRagSystemPrompt(prompt):
+    global system_prompt
+    system_prompt = prompt
+    
+def build_rag_graph(vector_sotre,llm):
     def retrive(state:State):
         retrieved_docs  = vector_sotre.similarity_search(state["question"],k=10)
         print("Retrived Docs: "+str(retrieved_docs))

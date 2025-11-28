@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 # ENVs
+*.env
 .env
 backend/.env
 frontend/.env

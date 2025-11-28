@@ -10,6 +10,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv 
 from langchain import hub
 from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_community.embeddings import CohereEmbeddings as OriginalCohereEmbeddings
+import cohere
 from langchain_community.vectorstores import Chroma
 from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate
@@ -18,6 +20,7 @@ from langgraph.graph import START, StateGraph
 from typing_extensions import List, TypedDict
 from basic_llm import build_simple_graph 
 from rag_llm import build_rag_graph
+from rag_llm import setRagSystemPrompt
 from vectorize import vectorize, devectorize
 
 # Input Query
@@ -28,53 +31,72 @@ past_msgs = [
 ]
 formatted_history = "\n".join([f"{m['role'].capitalize()}: {m['content']}" for m in past_msgs])
 
-# Load LLM
+# Load ENV Keys
 load_dotenv()
 os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
+os.environ["COHERE_API_KEY"] = os.getenv("COHERE_API_KEY")
+
+# Load LLM
 llm = init_chat_model("gemini-2.5-flash",model_provider="google_genai")
+
+class FixedCohereEmbeddings(OriginalCohereEmbeddings):
+    """Patched version to bypass missing 'user_agent' bug in older LangChain."""
+    def __init__(self, **kwargs):
+        # Force creation of a proper Cohere client manually
+        if "client" not in kwargs:
+            api_key = kwargs.get("cohere_api_key") or os.getenv("COHERE_API_KEY")
+            if not api_key:
+                raise ValueError("COHERE_API_KEY not found. Please set the key.")
+            kwargs["client"] = cohere.Client(api_key)
+        super().__init__(**kwargs)
+        
+    @classmethod
+    def validate_environment(cls, values): 
+        values["user_agent"] = "LangChainFixedCohere/0.3"
+        return values
 
 # Load VectorStore and RAG prompt/
 persist_dir = ("knowledgebase")
 collection_name = "knowledgebaseV1"
-embedder = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-V2")
+# embedder = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-V2")
+new_embedder = FixedCohereEmbeddings(model="embed-multilingual-v3.0")
 vector_store = Chroma(
     persist_directory=persist_dir,
     collection_name=collection_name,
-    embedding_function=embedder
+    embedding_function=new_embedder
 )
 
 # Propmt Templates
 basic_system_prompt_content = """
-        You are a classifier to determine whether the User Question is a 'basic' type or 'rag' type.
-        basic -> general, greating, basic, memory, any basic task which dosen't need a document to be reffered
-        rag -> knowledge based, information seeking, related to some docs
-        If its a baisc, write the answer to the question by yourself.
-        Give response as a VALID JSON array structrued and formatted well as below example:
-        Give direct JSON with no headers or footer tags...start with the JSON block itself without Markdown Wrapper Formating
-        {{
-            "type":"basic",
-            "ans":"Hi, How may I help You!",
-        }}
-        OR
-        {{
-            "type":"rag",
-            "ans":"",
-        }}
+You are a classifier to determine whether the user question is a "basic" type or "rag" type.
+Definitions:
+- basic → greetings, small talk, general questions that do NOT need any document.
+- rag → knowledge-based, information-seeking, or anything that may require the knowledge base.
+
+Rules:
+1. If the query is basic → set "type" to "basic" AND write the answer yourself.
+2. If the query is rag → set "type" to "rag" and leave "ans" empty.
+3. If the query is rag → also rewrite and enhance the query to make it clearer and more specific for document search.
+4. Detect the user's language (Hindi/Marathi/English).
+5. Output must be valid JSON only. No explanations. No markdown.
+
+JSON Structure:
+{{
+  "type": "basic" or "rag",
+  "language": "<detected_language>",
+  "ans": "<basic_answer_or_empty>",
+  "ragQuery": "<original_user_query>",
+  "enhancedRagQuery": "<improved_query_or_empty>"
+}}
+
+Now process the user query strictly using the above rules.
 """
 basic_system_prompt = SystemMessagePromptTemplate.from_template(basic_system_prompt_content)
-rag_builtin_prompt = hub.pull("rlm/rag-prompt",api_url="https://api.smith.langchain.com")
-rag_system_prompt_content = f"""
-        You are a SmartGram AI an helpful assistant in general for Village Citizens based on a Knowledge Base
-        Follow these rules while answering:
-        1. Don't Miss out any IMP information
-        2. Use simple language suitable for villagers.
-        3. If info is not in the context, say 'I don’t know'.
-"""
-rag_system_prompt = SystemMessagePromptTemplate.from_template(rag_system_prompt_content)
+
 
 # Build Graphs
-rag_graph = build_rag_graph(vector_store, llm, rag_system_prompt)
 basic_graph = build_simple_graph(llm, basic_system_prompt)
+rag_graph = build_rag_graph(vector_store, llm)
 
 
 app = FastAPI()
@@ -109,6 +131,7 @@ def main(request: QueryRequest, authorization: str = Header(None)):
     # Call Basic LLM first
     # basic_graph = build_simple_graph(llm, basic_system_prompt)
     response = basic_graph.invoke({"question": query, "chat_history": formatted_history})
+    print("--Basic Response--\n ",str(response))
     raw_output = response["answer"]
     cleaned_text = re.sub(r",(\s*[}\]])", r"\1", raw_output.strip())
 
@@ -123,8 +146,28 @@ def main(request: QueryRequest, authorization: str = Header(None)):
         return {"answer": parsed_output["ans"]}
     else:
         print("\n\n---- RAG LLM Call ----")
-        # rag_graph = build_rag_graph(vector_store, llm, rag_system_prompt)
-        response = rag_graph.invoke({"question": query, "chat_history": formatted_history})
+        
+        rag_query = parsed_output["enhancedRagQuery"]
+        language_detected = parsed_output["language"]
+        rag_system_prompt_content = f"""
+        You are SmartGram AI, a helpful assistant for village citizens.
+
+        Rules:
+        1. Use ONLY the information provided in the context to answer.
+        2. If the answer is not fully supported by the context, say "I don't know".
+        3. Use simple, clear language suitable for villagers.
+        4. Do NOT add extra details not present in the context.
+        5. Answer strictly in the user's language: {language_detected}.
+
+
+        User Question is in {language_detected}
+
+        Now give the final answer in {language_detected}.
+        """
+        rag_system_prompt = SystemMessagePromptTemplate.from_template(rag_system_prompt_content)
+        setRagSystemPrompt(rag_system_prompt)
+        
+        response = rag_graph.invoke({"question": rag_query, "chat_history": formatted_history})
         return {"answer": response["answer"]}
 
 @app.post("/update")
