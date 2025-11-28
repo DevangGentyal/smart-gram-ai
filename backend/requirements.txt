@@ -11,3 +11,4 @@ langchain-google-genai
 pypdf
 chromadb
 cohere
+python-multipart
