@@ -142,7 +142,7 @@ def main(request: QueryRequest, authorization: str = Header(None)):
     # Jump to RAG if not basic
     if parsed_output["type"] == "basic":
         print("\n\n---- Basic LLM Call ----")
-        return {"answer": parsed_output["ans"]}
+        return {"answer": parsed_output["ans"],"language":language_detected}
     else:
         print("\n\n---- RAG LLM Call ----")
         
@@ -167,7 +167,7 @@ def main(request: QueryRequest, authorization: str = Header(None)):
         setRagSystemPrompt(rag_system_prompt)
         
         response = rag_graph.invoke({"question": rag_query, "chat_history": formatted_history})
-        return {"answer": response["answer"]}
+        return {"answer": response["answer"],"language":language_detected}
 
 @app.post("/update")
 async def update(
