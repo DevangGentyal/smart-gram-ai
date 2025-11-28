@@ -139,6 +139,8 @@ def main(request: QueryRequest, authorization: str = Header(None)):
     except json.JSONDecodeError:
         parsed_output = {"type": "rag", "ans": ""}
 
+    language_detected = parsed_output["language"]
+    
     # Jump to RAG if not basic
     if parsed_output["type"] == "basic":
         print("\n\n---- Basic LLM Call ----")
@@ -147,7 +149,6 @@ def main(request: QueryRequest, authorization: str = Header(None)):
         print("\n\n---- RAG LLM Call ----")
         
         rag_query = parsed_output["enhancedRagQuery"]
-        language_detected = parsed_output["language"]
         rag_system_prompt_content = f"""
         You are SmartGram AI, a helpful assistant for village citizens.
 
