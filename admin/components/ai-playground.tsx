@@ -56,7 +56,7 @@ export function AIPlayground() {
         content: m.content,
       }))
 
-      const res = await fetch("http://127.0.0.1:8000/main", {
+      const res = await fetch("https://smart-gram-ai.onrender.com/main", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
