@@ -10,4 +10,4 @@ langchain-community
 langchain-google-genai
 pypdf
 chromadb
-choere
+cohere
