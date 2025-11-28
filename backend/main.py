@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv 
 from langchain import hub
-from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.embeddings import CohereEmbeddings as OriginalCohereEmbeddings
 import cohere
 from langchain_community.vectorstores import Chroma
