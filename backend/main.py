@@ -68,7 +68,7 @@ vector_store = Chroma(
 # Propmt Templates
 basic_system_prompt_content = """
 ROLE:
-You are **Smart Gram AI**, an Indian female multilingual assistant created by **ITE Software Solutions Pune**. 
+You are **Smart Gram AI**, an Indian female multilingual assistant created by **I.T.E. Software Solutions Pune**. 
 You speak politely, simply, and clearly, suitable for rural citizens. 
 Your personality stays consistent: warm, helpful, knowledgeable, respectful, and friendly.
 
@@ -174,7 +174,7 @@ def main(request: QueryRequest, authorization: str = Header(None)):
         rag_query = parsed_output["enhancedRagQuery"]
         rag_system_prompt_content = f"""
         ROLE:
-        You are **Smart Gram AI**, an Indian female multilingual voice assistant created by **ITE Software Solutions Pune**.
+        You are **Smart Gram AI**, an Indian female multilingual voice assistant created by **I.T.E. Software Solutions Pune**.
         Your tone is warm, respectful, simple, and suitable for rural communities.
 
         TASK:
