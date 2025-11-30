@@ -95,6 +95,8 @@ class ChatController extends StateNotifier<ChatState> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
 
+  bool get isAnyAudioPlaying => state.messages.any((m) => m.isPlayingAudio);
+
   // -----------------------------
   // Init TTS
   // -----------------------------
@@ -168,10 +170,25 @@ class ChatController extends StateNotifier<ChatState> {
       timestamp: DateTime.now(),
     );
 
-    state = state.copyWith(messages: [...state.messages, aiMessage]);
-    // Set STT Language
+    // Add AI message with playingAudio = true
+    final aiMsg = aiMessage.copyWith(isPlayingAudio: true);
+    state = state.copyWith(messages: [...state.messages, aiMsg]);
+    // Set Language
     // _tts.setLanguage(language);
+
+    // Start speaking
     await _tts.speak(cleanForTTS(reply));
+
+    // When it finishes → reset play state
+    _tts.setCompletionHandler(() {
+      final updated = state.messages.map((m) {
+        if (m.id == aiMsg.id) {
+          return m.copyWith(isPlayingAudio: false);
+        }
+        return m;
+      }).toList();
+      state = state.copyWith(messages: updated);
+    });
   }
 
   // -----------------------------
@@ -308,6 +325,16 @@ class ChatController extends StateNotifier<ChatState> {
         // Trim leftover spaces
         .trim();
     return cleaned;
+  }
+
+  // -----------------------------
+  // Stop TTS Universal
+  // -----------------------------
+  Future<void> stopAllAudio() async {
+    await _tts.stop();
+    final updated =
+        state.messages.map((m) => m.copyWith(isPlayingAudio: false)).toList();
+    state = state.copyWith(messages: updated);
   }
 
   @override

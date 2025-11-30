@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/colors.dart';
-import '../../core/typography.dart';
-
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class AiChatBubble extends StatelessWidget {
   const AiChatBubble({
@@ -14,6 +13,24 @@ class AiChatBubble extends StatelessWidget {
   final String text;
   final bool isPlaying;
   final VoidCallback onPlayPause;
+
+  Widget buildStyledText(String text) {
+    return MarkdownBody(
+      data: text,
+      styleSheet: MarkdownStyleSheet(
+        p: const TextStyle(fontSize: 15, height: 1.4),
+        strong: const TextStyle(fontWeight: FontWeight.bold),
+        listBullet: TextStyle(
+          fontSize: 18,
+          height: 1.4,
+          color: Colors.black87,
+        ),
+        h1: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        h2: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        h3: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,12 +70,7 @@ class AiChatBubble extends StatelessWidget {
 
             // Text
             Expanded(
-              child: Text(
-                text,
-                style: AppTypography.textTheme.bodyLarge!.copyWith(
-                  color: AppColors.textPrimary.withOpacity(0.9),
-                ),
-              ),
+              child: buildStyledText(text),
             ),
           ],
         ),

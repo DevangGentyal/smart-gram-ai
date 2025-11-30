@@ -36,8 +36,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   void _scrollToBottom() {
     if (!_scrollController.hasClients) return;
+
     _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent + 120,
+      _scrollController.position.maxScrollExtent -
+          300, // scroll to TOP of new bubble
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
@@ -84,42 +86,89 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         ],
       ),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 120),
-                itemCount: chatState.messages.length,
-                itemBuilder: (context, index) {
-                  final message = chatState.messages[index];
-                  return Padding(
-                      key: ValueKey(message.id),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: message.isUser
-                          ? UserChatBubble(text: message.text)
-                          : AiChatBubble(
-                              text: message.text,
-                              isPlaying: message.isPlayingAudio,
-                              onPlayPause: () => ref
-                                  .read(chatControllerProvider.notifier)
-                                  .togglePlay(message.id),
-                            ));
-                },
+            Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 120),
+                    itemCount: chatState.messages.length,
+                    itemBuilder: (context, index) {
+                      final message = chatState.messages[index];
+                      return Padding(
+                          key: ValueKey(message.id),
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: message.isUser
+                              ? UserChatBubble(text: message.text)
+                              : AiChatBubble(
+                                  text: message.text,
+                                  isPlaying: message.isPlayingAudio,
+                                  onPlayPause: () => ref
+                                      .read(chatControllerProvider.notifier)
+                                      .togglePlay(message.id),
+                                ));
+                    },
+                  ),
+                ),
+                _InputBar(
+                  controller: _messageController,
+                  onSend: _handleSend,
+                  isRecording: chatState.isRecording,
+                  micLevel: chatState.micLevel, // NEW
+                  onMicHoldStart: () => ref
+                      .read(chatControllerProvider.notifier)
+                      .startListening(),
+                  onMicHoldEnd: () =>
+                      ref.read(chatControllerProvider.notifier).stopListening(),
+                  onMicCancelled: () => ref
+                      .read(chatControllerProvider.notifier)
+                      .cancelListening(),
+                ),
+              ],
+            ),
+            // Floating STOP AUDIO bar
+            if (ref.watch(chatControllerProvider.notifier).isAnyAudioPlaying)
+              Positioned(
+                top: 12,
+                left: 20,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () {
+                    ref.read(chatControllerProvider.notifier).stopAllAudio();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 6,
+                        )
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.stop_rounded, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          "Stop Audio",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ),
-            _InputBar(
-              controller: _messageController,
-              onSend: _handleSend,
-              isRecording: chatState.isRecording,
-              micLevel: chatState.micLevel, // NEW
-              onMicHoldStart: () =>
-                  ref.read(chatControllerProvider.notifier).startListening(),
-              onMicHoldEnd: () =>
-                  ref.read(chatControllerProvider.notifier).stopListening(),
-              onMicCancelled: () =>
-                  ref.read(chatControllerProvider.notifier).cancelListening(),
-            ),
           ],
         ),
       ),
