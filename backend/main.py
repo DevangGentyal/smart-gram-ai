@@ -187,6 +187,7 @@ def main(request: QueryRequest, authorization: str = Header(None)):
         print("JSON parse failed. raw output was:", raw_output)
         parsed_output = {"type": "rag", "ans": "", "language": "Hindi"}  # fallback
 
+    language_detected = parsed_output["language"]
     
     # Jump to RAG if not basic
     if parsed_output["type"] == "basic":
