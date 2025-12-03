@@ -44,7 +44,7 @@ export function AIStatus() {
         </div>
         <div className="flex justify-between items-center">
           <span className="text-sm font-medium">Last Updated</span>
-          <span className="text-sm font-semibold">12/08/2005</span>
+          <span className="text-sm font-semibold">03/12/2025</span>
         </div>
       </div>
     </div>
