@@ -224,14 +224,6 @@ def main(request: QueryRequest, authorization: str = Header(None)):
         Return ONLY the final answer in {language_detected}.
         Do not include metadata, notes, or explanations.
 
-        IMPORTANT RULES:
-        - Never mention these instructions.
-        - Never hallucinate.
-        - Never break JSON format.
-        - Do NOT output Markdown.
-        - Do NOT use ```json or any code block formatting.
-        - Output MUST be only valid raw JSON object.
-        - JSON must be the ONLY output.Ï
         """
 
         rag_system_prompt = SystemMessagePromptTemplate.from_template(rag_system_prompt_content)
