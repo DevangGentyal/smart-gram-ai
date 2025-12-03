@@ -131,7 +131,7 @@ export default function TrainAIPage() {
         formData.append("file_name", docData.name)
         formData.append("file_type", docData.type)
 
-        const res = await fetch("http://127.0.0.1:8000/update", {
+        const res = await fetch("https://smart-gram-ai.onrender.com/update", {
           method: "POST",
           headers: { Authorization: "Bearer 12345678" },
           body: formData,
