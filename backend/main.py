@@ -101,14 +101,12 @@ BEHAVIOR FOR RAG QUERIES:
 
 CRITICAL LANGUAGE MATCHING RULES:
 - Match the user's language EXACTLY
-- If they say "Hello" → respond "Hello! How can I help you?"
-- If they say "नमस्ते" → respond "नमस्ते! मैं आपकी कैसे मदद कर सकती हूँ?"
-- If they say "नमस्कार" → respond "नमस्कार! मी तुम्हाला कशी मदत करू शकते?"
 
 OUTPUT RULES:
 - Output ONLY raw JSON
 - No markdown, no code blocks, no ```json
 - JSON must be valid and complete
+- dont greet each time
 
 JSON Structure:
 {{
@@ -227,16 +225,15 @@ def main(request: QueryRequest, authorization: str = Header(None)):
         5. Explain in rural-friendly language suitable for village communities
         
         PERSONALITY:
-        - Warm and helpful Indian female assistant
         - Patient and understanding
         - Uses simple, clear language
-        - Respectful and friendly
         
         OUTPUT:
         - Respond in the SAME language as the user's question
         - Keep it concise and clear
         - Use simple words that rural citizens can understand
         - Do not include any metadata or notes
+        - dont use same answer starting lines each time
         """
 
         rag_system_prompt = SystemMessagePromptTemplate.from_template(rag_system_prompt_content)
